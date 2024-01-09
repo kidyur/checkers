@@ -22,16 +22,16 @@ function hideSelected() {
 
 function getQueenCaptures(root, dir) {
 	let xInc = 1, yInc = -1;
-	let hor = "L", vert = "B";
+	let back = "LB";
 	let enemy;
 	let cells = [];
 	if (dir[0] == "L") {
 		xInc = -1;
-		hor = "R";
+		back[0] = "R";
 	}
 	if (dir[1] == "B") {
 		yInc = 1;
-		vert = "T";
+		back[0] = "T";
 	} 
 	let i = root.y + yInc;
 	let j = root.x + xInc;
@@ -60,8 +60,7 @@ function getQueenCaptures(root, dir) {
 	if (!selectAll) {
 		let nextCaptures = [];
 		for (cell of cells) {
-			if (isQueenCapture(cell, dir[0] + vert) || 
-				isQueenCapture(cell, hor + dir[1])) {
+			if (isQueenCapture(cell, [dir, back])) {
 				nextCaptures.push(cell);
 			}
 		}
@@ -70,13 +69,13 @@ function getQueenCaptures(root, dir) {
 	return {enemy: enemy, cells: cells, name: dir};
 }
 
-function isQueenCapture(root, bannedDir='') {
+function isQueenCapture(root, bannedDirs=['', '']) {
 	for (let x = -1; x < 2; x += 2) {
 		for (let y = -1; y < 2; y += 2) {
 			let dir = '';
 			dir += (x < 0) ? 'L' : "R";
 			dir += (y < 0) ? "T" : "B";
-			if (dir == bannedDir) continue;
+			if (dir == bannedDirs[0] || dir == bannedDirs[1]) continue;
 			let enemiesPast = 0
 			let i = root.y + y;
 			let j = root.x + x;
@@ -299,13 +298,11 @@ function resetGame() {
 		let j = i % 2 ? 0 : 1;
 		for (; j < 8; j+=2) {
 			const cell = {x: j, y: i};
-			if (i < 3) {
-				paint(cell, PLAYER_TWO);
-			} else if (i > 4) {
-				paint(cell, PLAYER_ONE);
-			} else {
-				paint(cell, BLACK);
-			}
+			let color = '';
+			if 		(i < 3) color = PLAYER_TWO;
+			else if (i > 4) color = PLAYER_ONE;
+			else 			color = BLACK;
+			paint(cell, color);
 		}
 	}
 	switchPlayer();
@@ -336,6 +333,18 @@ function createBoard() {
 			board[i].push(cell);
 		}
 	}
+}
+
+function makePosition(cells) {
+	for (cell of cells) {
+		paint(cell.coords, cell.color);
+		if (cell.isQueen) {
+			board[cell.coords.y][cell.coords.x].style.border = QUEEN;
+		} 
+		if (cell.color == PLAYER_ONE) board[cell.coords.y][cell.coords.x].className = ACTIVE;
+		else board[cell.coords.y][cell.coords.x].className = PASSIVE;
+	}
+	switchPlayer();
 }
 
 function start() {
