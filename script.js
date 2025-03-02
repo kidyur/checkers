@@ -7,10 +7,29 @@ const WHITE = 'var(--white-cell)';
 const ACTIVE = 'board__cell board__cell--active';
 const PASSIVE = 'board__cell board__cell--passive';
 
-let board = [];
+let grid = [];
 let selectedCells = [];
 let player = PLAYER_TWO;
 let opponent = PLAYER_ONE;
+
+const gridEl = document.createElement('div');
+gridEl.className = 'grid';
+document.body.appendChild(gridEl);
+
+class Cell {
+	ref;
+
+	constructor(r) {
+		this.ref = r;
+	}
+
+	get color() {
+		return this.ref.style.backgroundColor;
+	}
+	set color(bgcolor) {
+		this.ref.style.backgroundColor = bgcolor;
+	}
+}
 
 function hideSelected() {
 	for (cell of selectedCells) {
@@ -309,28 +328,23 @@ function resetGame() {
 }
 
 function createBoard() {
-	const table = document.getElementsByClassName("board")[0];
 	for (let i = 0; i < 8; i++) {
 		const line = document.createElement('div');
-		line.className = "board__line";
-		table.appendChild(line);
-		board.push([]);
-	}
-	const lines = document.getElementsByClassName("board__line");
-	for (let i = 0; i < 8; i++) {
+		line.className = "line";
+		gridEl.appendChild(line);
+		grid.push([]);
 		for (let j = 0; j < 8; j++) {
-			const cell = document.createElement('button');
-			
+			const cellEl = document.createElement('button');
 			if ((i % 2 && j % 2) || (!(i % 2) && !(j % 2))) {
-				cell.style.backgroundColor = WHITE;
-				cell.className = PASSIVE;
+				cellEl.style.backgroundColor = WHITE;
+				cellEl.className = PASSIVE;
 			} else {
-				cell.style.backgroundColor = BLACK;
-				cell.className = ACTIVE;
+				cellEl.style.backgroundColor = BLACK;
+				cellEl.className = ACTIVE;
 			}
-			
-			lines[i].appendChild(cell);
-			board[i].push(cell);
+			const cell = new Cell(cellEl);
+			line.appendChild(cell);
+			grid[i].push(cell);
 		}
 	}
 }
