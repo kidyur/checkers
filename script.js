@@ -4,8 +4,6 @@ const QUEEN = "5px solid var(--quenn)";
 const SELECTED = 'var(--selected)';
 const BLACK = 'var(--black-cell)';
 const WHITE = 'var(--white-cell)';
-const ACTIVE = 'board__cell board__cell--active';
-const PASSIVE = 'board__cell board__cell--passive';
 
 let grid = [];
 let selectedCells = [];
@@ -17,10 +15,12 @@ gridEl.className = 'grid';
 document.body.appendChild(gridEl);
 
 class Cell {
-	ref;
+	ref; x; y;
 
-	constructor(r) {
+	constructor(r, x, y) {
 		this.ref = r;
+		this.x = x;
+		this.y = y;
 	}
 
 	get color() {
@@ -29,12 +29,23 @@ class Cell {
 	set color(bgcolor) {
 		this.ref.style.backgroundColor = bgcolor;
 	}
+	
+	set active(state) {
+		if (state) {
+			this.ref.style.pointerEvents = "all";
+			this.ref.style.boxShadow = "0 0 10px 0 black";
+		}
+		else {
+			this.ref.style.pointerEvents = "none";
+			this.ref.style.boxShadow = "none";
+		}
+	}
 }
 
 function hideSelected() {
 	for (cell of selectedCells) {
-		paint(cell, BLACK);
-		board[cell.y][cell.x].className = PASSIVE;
+		cell.color = BLACK;
+		cell.active = false;
 	}
 	selectedCells = [];
 }
@@ -124,24 +135,12 @@ function getCaptures(root) {
 		{x: root.x+2, y: root.y-2},{x: root.x+2, y: root.y+2}
 	]);
 	const captures = cells.filter(cell => {
-		const enemy = {
-			x: (cell.x > root.x ? 1 : -1) + root.x, 
-			y: (cell.y > root.y ? 1 : -1) + root.y
-		};
-		const isEnemy = getColor(enemy) == opponent;
-		const isEmpty = getColor(cell) == BLACK;
+		const isEnemy = grid[(cell.x > root.x ? 1 : -1) + root.x][(cell.y > root.y ? 1 : -1) + root.y].color == opponent;
+		const isEmpty = grid[cell.y][cell.x] == BLACK;
 		
 		return isEnemy && isEmpty;
 	});
 	return captures;
-}
-
-function paint(cell, color) {
-	board[cell.y][cell.x].style.backgroundColor = color;
-}
-
-function getColor(cell) {
-	return board[cell.y][cell.x].style.backgroundColor;
 }
 
 function getBounded(arr) {
@@ -153,11 +152,11 @@ function getBounded(arr) {
 	return arr
 }
 
-function showMoves(root, isQuenn) {
+function showMoves(root) {
 	hideSelected();
 	let dirs = [];
 
-	if (isQuenn) {
+	if (root.level == 2) {
 		for (let x = -1; x < 2; x += 2) {
 			for (let y = -1; y < 2; y += 2) {
 				let i = root.y + y;
@@ -180,7 +179,8 @@ function showMoves(root, isQuenn) {
 		]);
 	}
 	for (cell of dirs) {
-		if (getColor(cell) == BLACK) {
+		console.log(cell)
+		if (cell.color == BLACK) {
 			select(cell, root); 
 		}
 	}
@@ -188,32 +188,30 @@ function showMoves(root, isQuenn) {
 
 function deactivate(color) {
 	for (let i = 0; i < 8; i++) {
-		let j = i % 2 ? 0 : 1;
-		for (; j < 8; j += 2) {
-			const cell = {x: j, y: i};
-			if (getColor(cell) == color) {
-				board[i][j].className = PASSIVE;
+		for (let j = !(i % 2); j < 8; j += 2) {
+			if (grid[i][j].color == color) {
+				grid[i][j].active = false;
 			}
 		}
 	}
 }
 
 function select(cell, root, enemy=0, dir='all') {
-	paint(cell, SELECTED);
-	board[cell.y][cell.x].className = ACTIVE;
-	selectedCells.push(cell);
+	cell.color = SELECTED
+	grid[cell.y][cell.x].active = true;
+	selectedCells.push(grid[cell.y][cell.x]);
 	const ind = selectedCells.indexOf(cell);
-	board[cell.y][cell.x].onclick = () => {
-		let rootLevel = board[root.y][root.x].style.border;
-		board[cell.y][cell.x].style.border = rootLevel;
-		board[root.y][root.x].style.border = '';
-		board[cell.y][cell.x].onclick = () => {};
+	grid[cell.y][cell.x].onclick = () => {
+		let rootLevel = grid[root.y][root.x].style.border;
+		grid[cell.y][cell.x].style.border = rootLevel;
+		grid[root.y][root.x].style.border = '';
+		grid[cell.y][cell.x].onclick = () => {};
 		
-		let isQuenn = board[cell.y][cell.x].style.border == QUEEN;
+		let isQuenn = grid[cell.y][cell.x].level == 2;
 		if (player == PLAYER_ONE && cell.y == 0 || 
 			player == PLAYER_TWO && cell.y == 7) {
 			isQuenn = true;
-			board[cell.y][cell.x].style.border = QUEEN;
+			grid[cell.y][cell.x].style.border = QUEEN;
 		}
 		
 		selectedCells.splice(ind, 1);
@@ -221,7 +219,7 @@ function select(cell, root, enemy=0, dir='all') {
 		paint(cell, player);
 		if (enemy) {
 			paint(enemy, BLACK);
-			board[enemy.y][enemy.x].style.border = '';
+			grid[enemy.y][enemy.x].style.border = '';
 			if (isQuenn) {
 				let back = "";
 				back += (dir[0] == 'R') ? "L" : "R";
@@ -230,21 +228,21 @@ function select(cell, root, enemy=0, dir='all') {
 				if (isNextCapture) {
 					deactivate(player);
 					showCaptures(cell, isQuenn, back);
-					board[cell.y][cell.x].className = ACTIVE;
+					grid[cell.y][cell.x].className = ACTIVE;
 				} else switchPlayer();
  			} else {
 				const isNextCapture = getCaptures(cell).length != 0;
 				if (isNextCapture) {
 					deactivate(player);
 					showCaptures(cell);
-					board[cell.y][cell.x].className = ACTIVE;
+					grid[cell.y][cell.x].className = ACTIVE;
 				} else switchPlayer();
 			}
 		} else switchPlayer();
 	}
 }
 
-function showCaptures(root, isQuenn=false, back='') {
+function showCaptures(root, back='') {
 	hideSelected();
 	
 	if (isQuenn) {
@@ -281,14 +279,15 @@ function switchPlayer() {
 	let isCapture = false;
 	LookingForCapture:
 	for (let i = 0; i < 8; i++) {
-		let j = i % 2 ? 0 : 1;
-		for (; j < 8; j += 2) {
-			const cell = {x: j, y: i};
-			if (getColor(cell) == player) {
-				const isQuenn = board[i][j].style.border == QUEEN; 
+		for (let j = !(i % 2) - 0; j < 8; j += 2) {
+			if (grid[i][j].color == player) {
+				const isQuenn = grid[i][j].level == 2; 
 				if (isQuenn) {
-					isCapture = isQueenCapture(cell);
-				} else isCapture = getCaptures(cell).length == 1;
+					isCapture = isQueenCapture(grid[i][j]);
+				} 
+				else {
+					isCapture = getCaptures(grid[i][j]).length == 1;
+				}
 				
 				if (isCapture) break LookingForCapture;
 			}
@@ -296,73 +295,57 @@ function switchPlayer() {
 	} 
 
 	for (let i = 0; i < 8; i++) {
-		let j = i % 2 ? 0 : 1;
-		for (; j < 8; j += 2) {
-			const cell = {x: j, y: i};
-			if (getColor(cell) == player) {
-				board[i][j].className = ACTIVE;
-				const isQuenn = board[i][j].style.border == QUEEN;
+		for (let j = !(i % 2) - 0; j < 8; j += 2) {
+			if (grid[i][j].color == player) {
+				grid[i][j].active = true;
+				const isQuenn = grid[i][j].level == 2;
 				if (isCapture) {
-					board[i][j].onclick = () => showCaptures(cell, isQuenn);
+					grid[i][j].onclick = () => showCaptures(grid[i][j], isQuenn);
 				} else {
-					board[i][j].onclick = () => showMoves(cell, isQuenn);
+					grid[i][j].onclick = () => showMoves(grid[i][j], isQuenn);
 				}
-			} else board[i][j].className = PASSIVE;
+			} else grid[i][j].active = false;
 		}
 	}
 }
 
 function resetGame() {
 	for (let i = 0; i < 8; i++) {
-		let j = i % 2 ? 0 : 1;
-		for (; j < 8; j+=2) {
-			const cell = {x: j, y: i};
-			let color = '';
-			if 		(i < 3) color = PLAYER_TWO;
-			else if (i > 4) color = PLAYER_ONE;
-			else 			color = BLACK;
-			paint(cell, color);
+		for (let j = !(i % 2) - 0; j < 8; j+=2) {
+			if (i < 3) grid[i][j].color = PLAYER_TWO;
+			else if (i > 4) grid[i][j].color = PLAYER_ONE;
+			else grid[i][j].color = BLACK;
 		}
 	}
 	switchPlayer();
 }
 
-function createBoard() {
+function createGrid() {
 	for (let i = 0; i < 8; i++) {
-		const line = document.createElement('div');
+		const line = document.createElement("div");
 		line.className = "line";
 		gridEl.appendChild(line);
 		grid.push([]);
 		for (let j = 0; j < 8; j++) {
-			const cellEl = document.createElement('button');
+			const cellEl = document.createElement("button");
+			const cell = new Cell(cellEl, j, i);
+			cellEl.className = "cell";
 			if ((i % 2 && j % 2) || (!(i % 2) && !(j % 2))) {
-				cellEl.style.backgroundColor = WHITE;
-				cellEl.className = PASSIVE;
-			} else {
-				cellEl.style.backgroundColor = BLACK;
-				cellEl.className = ACTIVE;
+				cell.color = WHITE;
+				cellEl.active = false;
+			} 
+			else {
+				cell.color = BLACK;
+				cellEl.active = true;
 			}
-			const cell = new Cell(cellEl);
-			line.appendChild(cell);
+			line.appendChild(cellEl);
 			grid[i].push(cell);
 		}
 	}
 }
 
-function makePosition(cells) {
-	for (cell of cells) {
-		paint(cell.coords, cell.color);
-		if (cell.isQueen) {
-			board[cell.coords.y][cell.coords.x].style.border = QUEEN;
-		} 
-		if (cell.color == PLAYER_ONE) board[cell.coords.y][cell.coords.x].className = ACTIVE;
-		else board[cell.coords.y][cell.coords.x].className = PASSIVE;
-	}
-	switchPlayer();
-}
-
 function start() {
-	createBoard();
+	createGrid();
 	resetGame();
 }
 
